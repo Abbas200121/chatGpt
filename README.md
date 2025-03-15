@@ -8,7 +8,7 @@
 
 Learned how to build a full-stack application, studied API structures, requests, and responses, and explored integrating external APIs with FastAPI.
 
-## Backend Development and AI Response System – 10 Hours
+## Backend Development and AI Response System – 20 Hours
 
 Developed the backend using FastAPI, implemented an endpoint to receive user messages, integrated the Hugging Face API for AI-generated responses, and designed database models connected to MySQL for message storage.
 
