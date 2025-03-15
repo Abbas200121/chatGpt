@@ -41,6 +41,9 @@ app.add_middleware(
 )
 
 
+# ✅ AI API Details (Using Hugging Face)
+HF_API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
+HF_API_KEY = "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"  # Replace this with your actual Hugging Face API key
 
 
 @app.get("/")
