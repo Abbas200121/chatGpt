@@ -1,45 +1,37 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { getMessages } from "../services/api"; // ✅ Import API function
 
-const MessageList = ({ messages }) => {
+const MessageList = () => {
   const messagesEndRef = useRef(null);
+  const [messages, setMessages] = useState([]);
   const [animatedMessages, setAnimatedMessages] = useState([]);
 
+  // ✅ Load messages when the component mounts
+  useEffect(() => {
+    fetchPreviousMessages();
+  }, []);
+
+  // ✅ Auto-scroll when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [animatedMessages]);
 
-  useEffect(() => {
-    if (messages.length === 0) return;
+  // ✅ Fetch and format messages
+  const fetchPreviousMessages = async () => {
+    try {
+      const data = await getMessages();
+      const formattedMessages = data.map((msg) => [
+        { text: msg.content, isUser: true },
+        { text: msg.response, isUser: false },
+      ]).flat(); // Flatten for correct order
 
-    const lastMessage = messages[messages.length - 1];
-
-    // If last message is from AI and has fullText, animate it
-    if (!lastMessage.isUser && lastMessage.fullText) {
-      let index = 0;
-      const text = lastMessage.fullText;
-
-      setAnimatedMessages((prev) => [...prev, { text: "", isUser: false }]);
-
-      const typingInterval = setInterval(() => {
-        setAnimatedMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            text: text.substring(0, index + 1),
-            isUser: false,
-          };
-          return newMessages;
-        });
-
-        index++;
-        if (index >= text.length) {
-          clearInterval(typingInterval);
-        }
-      }, 50); // Adjust speed of typing animation
-    } else {
-      setAnimatedMessages(messages);
+      setMessages(formattedMessages);
+      setAnimatedMessages(formattedMessages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
     }
-  }, [messages]);
+  };
 
   return (
     <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-800 rounded-lg w-full max-w-lg">

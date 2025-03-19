@@ -57,14 +57,17 @@ export const getProtectedData = async () => {
   });
   return response.data;
 };
+
+
 export const getMessages = async () => {
   try {
     const response = await axios.get(`${BASE_URL}/messages`, {
       headers: getAuthHeaders(),
     });
-    return response.data.messages;
+    return response.data; // Ensure it returns an array directly
   } catch (error) {
     console.error("Error fetching messages:", error);
     return [];
   }
 };
+

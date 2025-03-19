@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signup } from "../services/api";
+import { signup } from "../services/api"; // ✅ Import API function
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -12,14 +12,21 @@ const Signup = () => {
     e.preventDefault();
     setError("");
 
+    console.log("Signup Attempt:", { email, password });
+
     try {
       const token = await signup(email, password);
+      console.log("Received Token:", token);
+
       if (token) {
         localStorage.setItem("token", token);
-        navigate("/chat");
+        navigate("/chat"); // ✅ Redirect to chat
+      } else {
+        setError("Signup failed. Please try again.");
       }
     } catch (err) {
-      setError("Email already registered or invalid.");
+      console.error("Signup Error:", err.response?.data || err.message);
+      setError(err.response?.data?.detail || "Email already registered or invalid.");
     }
   };
 

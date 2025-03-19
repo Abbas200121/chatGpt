@@ -1,88 +1,93 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom"; 
-const botName = "Chatbot";
+import { useNavigate } from "react-router-dom";
+import { getMessages, sendMessage } from "../services/api"; // ✅ Import API functions
 
+const botName = "Chatbot";
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([]);
   const [userMessage, setUserMessage] = useState("");
-  const [typingMessage, setTypingMessage] = useState(""); // AI typing message state
+  const [typingMessage, setTypingMessage] = useState(""); 
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  const navigate = useNavigate(); // ✅ Hook for navigation
+  const navigate = useNavigate();
 
+  // ✅ Load messages when user logs in
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      navigate("/"); // Redirect to login if no token
+      navigate("/"); // Redirect if no token
+    } else {
+      fetchMessages(); // Load previous messages
     }
-  }, [navigate]); // Runs once when component mounts
+  }, [navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingMessage]);
 
+  // ✅ Fetch previous messages from backend
+  const fetchMessages = async () => {
+    try {
+      const data = await getMessages();
+      const formattedMessages = data.map((msg) => [
+        { text: msg.content, isUser: true },
+        { text: msg.response, isUser: false },
+      ]).flat(); // Flatten to keep proper message order
+
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Remove the auth token
+    navigate("/"); // Redirect to login page
+  };
+  
   const handleSend = async () => {
     if (!userMessage.trim()) return;
-
-    const token = localStorage.getItem("token"); // Get token from local storage
-
-    // ✅ Instantly add user message to the chat
     setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
+    setUserMessage(""); 
 
-
-    setUserMessage(""); // Clear input field
     try {
       setIsTyping(true);
       setTypingMessage("AI is typing...");
 
-      const response = await fetch("http://localhost:8000/message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ content: userMessage }),
-      });
+      const response = await sendMessage(userMessage);
 
-      if (response.status === 401) {
-        throw new Error("Unauthorized: Please log in again.");
-      }
-
-      const data = await response.json();
-      const aiResponse = data.response;
-
-      setTimeout(() => {
+      if (response) {
         setIsTyping(false);
-        simulateTyping(aiResponse);
-      }, 300); // Reduced delay for faster response appearance
+        setMessages((prev) => [
+          ...prev,
+          { text: response.response, isUser: false },
+        ]);
+      }
     } catch (error) {
-      setMessages((prev) => [...prev, { text: `Error: ${error.message}`, isUser: false }]);
+      setMessages((prev) => [
+        ...prev,
+        { text: `Error: ${error.message}`, isUser: false },
+      ]);
       setIsTyping(false);
     }
   };
 
-  const simulateTyping = (text) => {
-    let index = text.length;
-    let currentText = "";
-
-    const typingEffect = setInterval(() => {
-      if (index === 0) {
-        clearInterval(typingEffect);
-        setMessages((prev) => [...prev, { text: currentText, isUser: false }]);
-        setTypingMessage("");
-      } else {
-        currentText = text[index - 1] + currentText;
-        setTypingMessage(currentText);
-        index--;
-      }
-    }, 20); // Increased speed for even faster appearance without flashing
-  };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-lg w-full bg-gray-800 p-6 rounded-lg shadow-lg">
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
+
+                {/*Logout Button */}
+                <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg"
+        >
+          Logout
+        </button>
+
+
         <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-700 rounded-lg">
           {messages.map((msg, index) => (
             <motion.div
@@ -97,7 +102,6 @@ const Chatbot = () => {
               <strong>{msg.isUser ? "You" : botName}:</strong> {msg.text}
             </motion.div>
           ))}
-          {/* ✅ AI is typing effect */}
           {isTyping && (
             <motion.div
               initial={{ opacity: 0 }}
