@@ -13,10 +13,10 @@ from models import Message
 from database import SessionLocal
 from auth import get_current_user
 from ai_service import get_ai_response
-from schemas import MessageRequest, MessageResponse
-
-
+from schemas import UserCreate, UserMessages, MessageRequest, MessageResponse
+from typing import List  # ✅ Import List here
 models.Base.metadata.create_all(bind=engine)
+import crud
 
 app = FastAPI()
 
@@ -44,18 +44,19 @@ app.add_middleware(
 # ✅ AI API Details (Using Hugging Face)
 HF_API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
 HF_API_KEY = "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"  # Replace this with your actual Hugging Face API key
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @app.get("/")
 def read_root():
     return {"message": "API is working!"}
 
-
-@app.post("/message", response_model=MessageResponse)  # Ensure the correct response model is used
+@app.post("/message", response_model=MessageResponse)
 def send_message(
-        message: MessageRequest,  # Ensure you're using the correct Pydantic schema
-        user: dict = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    message: MessageRequest,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     print(f"User: {user}")  # Debugging
 
@@ -65,25 +66,21 @@ def send_message(
     # Generate AI Response
     ai_response = get_ai_response(message.content)
 
-    # Store message in the database
-    db_message = models.Message(user_id=user["id"], content=message.content, response=ai_response)
-    db.add(db_message)
-    db.commit()
-    db.refresh(db_message)
+    # ✅ Pass user_id separately
+    db_message = crud.create_message(db, user["id"], message, ai_response)
 
     return MessageResponse(id=db_message.id, content=db_message.content, response=db_message.response)
+# ✅ Retrieve all previous messages for the logged-in user
+@app.get("/messages", response_model=List[MessageResponse])
+def get_user_messages(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user or "id" not in user:
+        raise HTTPException(status_code=400, detail="Invalid user authentication")
+
+    messages = db.query(Message).filter(Message.user_id == user["id"]).all()
+    return messages
 
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @app.post("/signup")

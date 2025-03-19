@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List  # ✅ Import List here
 
 # ✅ User Signup Schema
 class UserCreate(BaseModel):
@@ -22,4 +23,10 @@ class MessageResponse(BaseModel):
     id: int
     content: str
     response: str
+class UserMessages(BaseModel):
+    user_id: int
+    messages: List[MessageResponse]
 
+class MessageCreate(BaseModel):
+    user_id: int
+    content: str
