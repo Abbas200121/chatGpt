@@ -30,3 +30,18 @@ class UserMessages(BaseModel):
 class MessageCreate(BaseModel):
     user_id: int
     content: str
+
+class ChatCreate(BaseModel):
+    user_id: int
+
+class MessageRequest(BaseModel):
+    content: str
+
+class MessageResponse(BaseModel):
+    id: int
+    content: str
+    response: str
+
+class ChatResponse(BaseModel):
+    id: int
+    messages: List[MessageResponse]

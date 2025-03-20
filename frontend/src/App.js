@@ -18,8 +18,9 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />  {/* ✅ Added Signup Route */}
+      <Route path="/" element={<Login />} />
+        <Route path="/login/*" element={<Login />} /> {/* ✅ Allow query params */}
+        <Route path="/signup" element={<Signup />} />
         <Route
           path="/chat"
           element={

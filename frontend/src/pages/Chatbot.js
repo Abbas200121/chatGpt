@@ -1,93 +1,131 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { getMessages, sendMessage } from "../services/api"; // ✅ Import API functions
+import { getChats, createNewChat, getMessages, sendMessage } from "../services/api"; 
 
 const botName = "Chatbot";
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([]);
   const [userMessage, setUserMessage] = useState("");
-  const [typingMessage, setTypingMessage] = useState(""); 
-  const [isTyping, setIsTyping] = useState(false);
+  const [chatId, setChatId] = useState(null);
+  const [chats, setChats] = useState([]);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
-  // ✅ Load messages when user logs in
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/"); // Redirect if no token
-    } else {
-      fetchMessages(); // Load previous messages
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingMessage]);
-
-  // ✅ Fetch previous messages from backend
-  const fetchMessages = async () => {
+  // ✅ Fetch user chats
+  const fetchChats = useCallback(async () => {
     try {
-      const data = await getMessages();
+      const data = await getChats();
+      if (data.chats.length > 0) {
+        setChats(data.chats);
+        setChatId(data.chats[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+    }
+  }, []);
+
+  // ✅ Fetch messages for selected chat
+  const fetchMessages = useCallback(async (selectedChatId) => {
+    try {
+      const data = await getMessages(selectedChatId);
       const formattedMessages = data.map((msg) => [
         { text: msg.content, isUser: true },
         { text: msg.response, isUser: false },
-      ]).flat(); // Flatten to keep proper message order
-
+      ]).flat();
       setMessages(formattedMessages);
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
+  }, []);
+
+  // ✅ Load chats and check auth token
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.warn("No token found! Redirecting to login...");
+      navigate("/");
+    } else {
+      fetchChats();
+    }
+  }, [navigate, fetchChats]);
+
+  // ✅ Fetch messages when chat ID changes
+  useEffect(() => {
+    if (chatId) {
+      fetchMessages(chatId);
+    }
+  }, [chatId, fetchMessages]);
+
+  // ✅ Scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // ✅ Create new chat
+  const handleNewChat = async () => {
+    try {
+      const response = await createNewChat();
+      const newChat = { id: response.chat_id };
+      setChats((prevChats) => [...prevChats, newChat]);
+      setChatId(newChat.id);
+      setMessages([]);
+    } catch (error) {
+      console.error("Error creating new chat:", error);
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove the auth token
-    navigate("/"); // Redirect to login page
-  };
-  
+  // ✅ Send a message
   const handleSend = async () => {
-    if (!userMessage.trim()) return;
+    if (!userMessage.trim() || !chatId) return;
     setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
-    setUserMessage(""); 
+    setUserMessage("");
 
     try {
-      setIsTyping(true);
-      setTypingMessage("AI is typing...");
-
-      const response = await sendMessage(userMessage);
-
+      const response = await sendMessage(chatId, userMessage);
       if (response) {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          { text: response.response, isUser: false },
-        ]);
+        setMessages((prev) => [...prev, { text: response.response, isUser: false }]);
       }
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { text: `Error: ${error.message}`, isUser: false },
-      ]);
-      setIsTyping(false);
+      console.error("Error sending message:", error);
+      setMessages((prev) => [...prev, { text: `Error: ${error.message}`, isUser: false }]);
     }
+  };
+
+  // ✅ Logout function
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-lg w-full bg-gray-800 p-6 rounded-lg shadow-lg">
+      <div className="max-w-lg w-full bg-gray-800 p-6 rounded-lg shadow-lg relative">
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
 
-                {/*Logout Button */}
-                <button
-          onClick={handleLogout}
-          className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg"
-        >
+        <button onClick={handleLogout} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg">
           Logout
         </button>
 
+        {/* Chat Selection */}
+        <div className="flex space-x-2 mb-4">
+          {chats.map((chat) => (
+            <button
+              key={chat.id}
+              onClick={() => setChatId(chat.id)}
+              className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
+            >
+              Chat {chat.id}
+            </button>
+          ))}
+          <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
+            New Chat
+          </button>
+        </div>
 
+        {/* Chat Messages */}
         <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-700 rounded-lg">
           {messages.map((msg, index) => (
             <motion.div
@@ -95,26 +133,15 @@ const Chatbot = () => {
               initial={{ opacity: 0, x: msg.isUser ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
-              className={`p-3 rounded-lg max-w-xs ${
-                msg.isUser ? "bg-blue-500 text-white ml-auto" : "bg-gray-600 text-white"
-              }`}
+              className={`p-3 rounded-lg max-w-xs ${msg.isUser ? "bg-blue-500 text-white ml-auto" : "bg-gray-600 text-white"}`}
             >
               <strong>{msg.isUser ? "You" : botName}:</strong> {msg.text}
             </motion.div>
           ))}
-          {isTyping && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, repeat: Infinity }}
-              className="p-3 bg-gray-600 text-white rounded-lg max-w-xs"
-            >
-              <strong>{botName}:</strong> {typingMessage}
-            </motion.div>
-          )}
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Message Input */}
         <div className="flex items-center mt-4">
           <input
             type="text"

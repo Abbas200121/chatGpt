@@ -2,27 +2,31 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+const BASE_URL = "http://localhost:8000"; // ✅ Ensure your backend URL is correct
+
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  // ✅ Handle Email/Password Login
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       console.log("Sending data:", { email, password });
-  
+
       const response = await axios.post(
-        "http://localhost:8000/login",
+        `${BASE_URL}/login`,
         { email, password },
         {
           headers: { "Content-Type": "application/json" },
-          withCredentials: true,  // ✅ Ensure credentials are sent
+          withCredentials: true, // ✅ Send credentials
         }
       );
-  
+
       console.log("Server Response:", response.data);
-  
+
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
         alert("Login successful!");
@@ -35,7 +39,11 @@ const Login = () => {
       setError(error.response?.data?.detail || "Invalid credentials. Please try again.");
     }
   };
-  
+
+  // ✅ Handle Google Login
+  const handleGoogleLogin = () => {
+    window.location.href = `${BASE_URL}/auth/google`;
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
@@ -44,6 +52,7 @@ const Login = () => {
 
         {error && <p className="text-red-500 text-center">{error}</p>}
 
+        {/* ✅ Email & Password Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="email"
@@ -65,6 +74,16 @@ const Login = () => {
             Login
           </button>
         </form>
+
+        {/* ✅ Google Login Button */}
+        <div className="mt-4 text-center">
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full p-3 bg-red-500 rounded-lg text-white"
+          >
+            Login with Google
+          </button>
+        </div>
 
         <p className="text-center mt-4">
           Don't have an account?{" "}

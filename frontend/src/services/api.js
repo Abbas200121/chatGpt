@@ -33,41 +33,36 @@ export const login = async (email, password) => {
   }
 };
 
-
-
-export const sendMessage = async (message) => {
-  try {
-    const response = await axios.post(
-      `${BASE_URL}/message`,
-      { content: message },
-      { headers: getAuthHeaders() }
-    );
-
-    console.log("Full API Response:", response.data); // Debugging
-    return response.data;
-  } catch (error) {
-    console.error("Error sending message:", error);
-    return { response: "Server error, please try again!" };
-  }
-};
-
-export const getProtectedData = async () => {
-  const response = await axios.get(`${BASE_URL}/protected`, {
+export const getChats = async () => {
+  const response = await axios.get(`${BASE_URL}/chats`, {
     headers: getAuthHeaders(),
   });
   return response.data;
 };
 
-
-export const getMessages = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/messages`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data; // Ensure it returns an array directly
-  } catch (error) {
-    console.error("Error fetching messages:", error);
-    return [];
-  }
+export const createNewChat = async () => {
+  const response = await axios.post(`${BASE_URL}/chats/new`, {}, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
+export const getMessages = async (chatId) => {
+  const response = await axios.get(`${BASE_URL}/chats/${chatId}/messages`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+export const sendMessage = async (chatId, message) => {
+  const response = await axios.post(`${BASE_URL}/chats/${chatId}/send`, { content: message }, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+// ✅ Logout function (clear token)
+export const logout = () => {
+  localStorage.removeItem("token");
+  window.location.href = "/";
+};

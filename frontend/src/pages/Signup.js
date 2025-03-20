@@ -1,6 +1,6 @@
+import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signup } from "../services/api"; // ✅ Import API function
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -10,23 +10,26 @@ const Signup = () => {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError("");
-
-    console.log("Signup Attempt:", { email, password });
+    setError(""); // Clear previous errors
 
     try {
-      const token = await signup(email, password);
-      console.log("Received Token:", token);
+      const response = await axios.post(
+        "http://localhost:8000/signup",
+        { email, password },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
-      if (token) {
-        localStorage.setItem("token", token);
-        navigate("/chat"); // ✅ Redirect to chat
+      console.log("Signup Response:", response.data);
+
+      if (response.status === 200 || response.status === 201) { 
+        alert("Signup successful!");
+        navigate("/chat"); // Redirect to chat page
       } else {
         setError("Signup failed. Please try again.");
       }
-    } catch (err) {
-      console.error("Signup Error:", err.response?.data || err.message);
-      setError(err.response?.data?.detail || "Email already registered or invalid.");
+    } catch (error) {
+      console.error("Signup Error:", error.response?.data || error.message);
+      setError(error.response?.data?.detail || "Signup failed. Please try again.");
     }
   };
 
