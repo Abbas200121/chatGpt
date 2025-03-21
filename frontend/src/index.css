@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Enable dark mode */
+html.dark {
+  @apply bg-gray-900 text-white;
+}

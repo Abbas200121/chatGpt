@@ -13,6 +13,22 @@ const Chatbot = () => {
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
+  // ✅ Dark Mode State
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
+
+  // ✅ Apply Dark Mode Effect
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
   // ✅ Fetch user chats
   const fetchChats = useCallback(async () => {
     try {
@@ -101,36 +117,50 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-lg w-full bg-gray-800 p-6 rounded-lg shadow-lg relative">
+    <div className={`flex flex-col items-center justify-center min-h-screen p-4 
+      ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-black"}`}>
+
+      <div className={`max-w-lg w-full p-6 rounded-lg shadow-lg relative 
+        ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
 
+        {/* ✅ Dark Mode Toggle Button */}
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className={`absolute top-4 left-4 p-2 rounded-lg 
+            ${darkMode ? "bg-gray-200 text-black" : "bg-gray-800 text-white"}`}
+        >
+          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+        </button>
+
+        {/* ✅ Logout Button */}
         <button onClick={handleLogout} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg">
           Logout
         </button>
 
-        {/* Chat Selection */}
+        {/* ✅ Chat Selection */}
         <div className="flex space-x-2 mb-4">
-  {chats.map((chat) => (
-    <button
-      key={chat.id}
-      onClick={() => {
-        setChatId(chat.id);
-        fetchMessages(chat.id);
-      }}
-      className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
-    >
-      Chat {chat.number}  {/* ✅ Use sequential numbering */}
-    </button>
-  ))}
-  <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
-    New Chat
-  </button>
-</div>
+          {chats.map((chat) => (
+            <button
+              key={chat.id}
+              onClick={() => {
+                setChatId(chat.id);
+                fetchMessages(chat.id);
+              }}
+              className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
+            >
+              Chat {chat.id}
+            </button>
+          ))}
+          <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
+            New Chat
+          </button>
+        </div>
 
-
-        {/* Chat Messages */}
-        <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-700 rounded-lg">
+        {/* ✅ Chat Messages */}
+        <div className={`h-96 overflow-y-auto p-4 space-y-4 rounded-lg 
+          ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
           {messages.map((msg, index) => (
             <motion.div
               key={index}
@@ -145,7 +175,7 @@ const Chatbot = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Message Input */}
+        {/* ✅ Message Input */}
         <div className="flex items-center mt-4">
           <input
             type="text"
@@ -153,7 +183,8 @@ const Chatbot = () => {
             onChange={(e) => setUserMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your message..."
-            className="flex-1 p-3 text-white bg-gray-700 rounded-lg outline-none"
+            className={`flex-1 p-3 rounded-lg outline-none 
+              ${darkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`}
           />
           <button onClick={handleSend} className="ml-2 p-2 bg-blue-500 rounded-full text-white">
             Send
