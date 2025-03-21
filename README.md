@@ -27,3 +27,19 @@ Changed how AI responses are displayed from instant appearance to a dynamic, hum
 ## Implementing Authentication (Login & Signup) – 10 Hours
 
 Implemented JWT authentication for user login and signup, enforced authentication so that only logged-in users can send messages, used password hashing to store passwords securely in MySQL, and fixed issues where the server sometimes failed to send tokens or encountered authentication errors.
+
+## Enhancing Chat Storage – 8 Hours
+
+Implemented per-user chat history storage, ensuring each user sees only their own previous chats upon login. Enhanced the backend to fetch and display user-specific chats so that users can review old messages after logging in.
+
+## Multi-Session Chat Support – 15 Hours
+
+Modified the backend to allow users to create multiple chat sessions while keeping all their past chats intact. Updated the frontend to display a list of active user chats, making it easy to switch between conversations seamlessly.
+
+## Google Authentication and Logout – 10 Hours
+
+Integrated Google OAuth for authentication, allowing users to log in with their Google accounts. Fixed issues with token handling and ensured that users remain authenticated after logging in. Added a logout button to allow users to clear their session securely.
+
+## Fixing Authentication Issues and Token Handling – 4 Hours
+
+Resolved issues with JWT tokens not being sent properly during login. Ensured tokens are correctly stored and retrieved on the frontend. Fixed bugs where some authentication requests were failing due to incorrect token handling in FastAPI middleware.
