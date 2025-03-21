@@ -65,8 +65,12 @@ def read_root():
 # ✅ Get all user chats
 @app.get("/chats")
 def get_user_chats(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    chats = crud.get_chats(db, user["id"])
-    return {"chats": chats}
+    chats = db.query(Chat).filter(Chat.user_id == user["id"]).order_by(Chat.id).all()
+
+    # ✅ Assign sequential numbers per user (1, 2, 3...)
+    user_chats = [{"id": chat.id, "number": idx + 1} for idx, chat in enumerate(chats)]
+
+    return {"chats": user_chats}
 
 
 # ✅ Create a new chat

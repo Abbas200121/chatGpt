@@ -111,19 +111,23 @@ const Chatbot = () => {
 
         {/* Chat Selection */}
         <div className="flex space-x-2 mb-4">
-          {chats.map((chat) => (
-            <button
-              key={chat.id}
-              onClick={() => setChatId(chat.id)}
-              className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
-            >
-              Chat {chat.id}
-            </button>
-          ))}
-          <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
-            New Chat
-          </button>
-        </div>
+  {chats.map((chat) => (
+    <button
+      key={chat.id}
+      onClick={() => {
+        setChatId(chat.id);
+        fetchMessages(chat.id);
+      }}
+      className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
+    >
+      Chat {chat.number}  {/* ✅ Use sequential numbering */}
+    </button>
+  ))}
+  <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
+    New Chat
+  </button>
+</div>
+
 
         {/* Chat Messages */}
         <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-700 rounded-lg">
