@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { getChats, createNewChat, getMessages, sendMessage } from "../services/api"; 
+import { getChats, createNewChat, getMessages, sendMessage } from "../services/api";
+import jsPDF from "jspdf"; // ← NEW
 
 const botName = "Chatbot";
 
@@ -13,12 +14,10 @@ const Chatbot = () => {
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
-  // ✅ Dark Mode State
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
 
-  // ✅ Apply Dark Mode Effect
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -29,7 +28,6 @@ const Chatbot = () => {
     }
   }, [darkMode]);
 
-  // ✅ Fetch user chats
   const fetchChats = useCallback(async () => {
     try {
       const data = await getChats();
@@ -42,7 +40,6 @@ const Chatbot = () => {
     }
   }, []);
 
-  // ✅ Fetch messages for selected chat
   const fetchMessages = useCallback(async (selectedChatId) => {
     try {
       const data = await getMessages(selectedChatId);
@@ -56,10 +53,8 @@ const Chatbot = () => {
     }
   }, []);
 
-  // ✅ Load chats and check auth token
   useEffect(() => {
     const token = localStorage.getItem("token");
-
     if (!token) {
       console.warn("No token found! Redirecting to login...");
       navigate("/");
@@ -68,19 +63,16 @@ const Chatbot = () => {
     }
   }, [navigate, fetchChats]);
 
-  // ✅ Fetch messages when chat ID changes
   useEffect(() => {
     if (chatId) {
       fetchMessages(chatId);
     }
   }, [chatId, fetchMessages]);
 
-  // ✅ Scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ Create new chat
   const handleNewChat = async () => {
     try {
       const response = await createNewChat();
@@ -93,7 +85,6 @@ const Chatbot = () => {
     }
   };
 
-  // ✅ Send a message
   const handleSend = async () => {
     if (!userMessage.trim() || !chatId) return;
     setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
@@ -110,22 +101,41 @@ const Chatbot = () => {
     }
   };
 
-  // ✅ Logout function
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/");
+  };
+
+  // ✅ Export chat messages to PDF
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    let y = 10;
+
+    messages.forEach((msg) => {
+      const sender = msg.isUser ? "You" : botName;
+      const line = `${sender}: ${msg.text}`;
+      doc.text(line, 10, y);
+      y += 10;
+
+      if (y > 280) {
+        doc.addPage();
+        y = 10;
+      }
+    });
+
+    doc.save(`chat-${chatId || "export"}.pdf`);
   };
 
   return (
     <div className={`flex flex-col items-center justify-center min-h-screen p-4 
       ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-black"}`}>
 
-      <div className={`max-w-lg w-full p-6 rounded-lg shadow-lg relative 
+      <div className={`max-w-3xl w-full p-6 rounded-lg shadow-lg relative 
         ${darkMode ? "bg-gray-800" : "bg-white"}`}>
 
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
 
-        {/* ✅ Dark Mode Toggle Button */}
+        {/* Dark Mode Toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           className={`absolute top-4 left-4 p-2 rounded-lg 
@@ -134,13 +144,21 @@ const Chatbot = () => {
           {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
         </button>
 
-        {/* ✅ Logout Button */}
+        {/* Logout */}
         <button onClick={handleLogout} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg">
           Logout
         </button>
 
-        {/* ✅ Chat Selection */}
-        <div className="flex space-x-2 mb-4">
+        {/* Export PDF */}
+        <button
+          onClick={handleExportPDF}
+          className="absolute top-4 right-24 p-2 bg-yellow-500 text-black rounded-lg"
+        >
+          Export PDF
+        </button>
+
+        {/* Chat Selection */}
+        <div className="flex flex-wrap gap-2 mb-4 mt-8">
           {chats.map((chat) => (
             <button
               key={chat.id}
@@ -148,7 +166,7 @@ const Chatbot = () => {
                 setChatId(chat.id);
                 fetchMessages(chat.id);
               }}
-              className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600"}`}
+              className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
             >
               Chat {chat.id}
             </button>
@@ -158,7 +176,7 @@ const Chatbot = () => {
           </button>
         </div>
 
-        {/* ✅ Chat Messages */}
+        {/* Chat Messages */}
         <div className={`h-96 overflow-y-auto p-4 space-y-4 rounded-lg 
           ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
           {messages.map((msg, index) => (
@@ -175,7 +193,7 @@ const Chatbot = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ✅ Message Input */}
+        {/* Input */}
         <div className="flex items-center mt-4">
           <input
             type="text"
