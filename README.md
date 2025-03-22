@@ -4,7 +4,7 @@
 
 ### **ChatGPT-App Development Progress**
 
-## Studying Full-Stack Development and API Usage – 5 Hours
+## Studying Full-Stack Development and API Usage – 8 Hours
 
 Learned how to build a full-stack application, studied API structures, requests, and responses, and explored integrating external APIs with FastAPI.
 
@@ -43,3 +43,11 @@ Integrated Google OAuth for authentication, allowing users to log in with their 
 ## Fixing Authentication Issues and Token Handling – 4 Hours
 
 Resolved issues with JWT tokens not being sent properly during login. Ensured tokens are correctly stored and retrieved on the frontend. Fixed bugs where some authentication requests were failing due to incorrect token handling in FastAPI middleware.
+
+## 🌙 Dark and Light Theme Support – 6 Hours
+
+Added a dark/light mode toggle using local storage to persist the selected theme across sessions. Updated UI components to adapt their styles based on the selected theme, improving accessibility and personal preference.
+
+## 📄 Export Chat to PDF – 5 Hours
+
+Implemented a feature to export the chat history to a PDF file. Added a new button to trigger the export, and used `jsPDF` to generate downloadable PDFs including both user and bot messages. Ensured formatting and layout look clean in the exported document.
