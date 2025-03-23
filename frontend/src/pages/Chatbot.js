@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { getChats, createNewChat, getMessages, sendMessage } from "../services/api";
-import jsPDF from "jspdf"; // ← NEW
+import jsPDF from "jspdf";
 
 const botName = "Chatbot";
 
@@ -17,6 +17,8 @@ const Chatbot = () => {
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+
+  const [typingBotMessage, setTypingBotMessage] = useState(null);
 
   useEffect(() => {
     if (darkMode) {
@@ -71,7 +73,7 @@ const Chatbot = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typingBotMessage]);
 
   const handleNewChat = async () => {
     try {
@@ -93,7 +95,23 @@ const Chatbot = () => {
     try {
       const response = await sendMessage(chatId, userMessage);
       if (response) {
-        setMessages((prev) => [...prev, { text: response.response, isUser: false }]);
+        let fullText = response.response;
+        let currentText = "";
+        let index = 0;
+
+        setTypingBotMessage("");
+
+        const interval = setInterval(() => {
+          if (index < fullText.length) {
+            currentText += fullText[index];
+            setTypingBotMessage(currentText);
+            index++;
+          } else {
+            clearInterval(interval);
+            setMessages((prev) => [...prev, { text: fullText, isUser: false }]);
+            setTypingBotMessage(null);
+          }
+        }, 30);
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -106,7 +124,6 @@ const Chatbot = () => {
     navigate("/");
   };
 
-  // ✅ Export chat messages to PDF
   const handleExportPDF = () => {
     const doc = new jsPDF();
     let y = 10;
@@ -116,7 +133,6 @@ const Chatbot = () => {
       const line = `${sender}: ${msg.text}`;
       doc.text(line, 10, y);
       y += 10;
-
       if (y > 280) {
         doc.addPage();
         y = 10;
@@ -130,12 +146,11 @@ const Chatbot = () => {
     <div className={`flex flex-col items-center justify-center min-h-screen p-4 
       ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-black"}`}>
 
-      <div className={`max-w-3xl w-full p-6 rounded-lg shadow-lg relative 
+      <div className={`max-w-4xl w-full p-6 rounded-lg shadow-lg relative 
         ${darkMode ? "bg-gray-800" : "bg-white"}`}>
 
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
 
-        {/* Dark Mode Toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           className={`absolute top-4 left-4 p-2 rounded-lg 
@@ -144,22 +159,19 @@ const Chatbot = () => {
           {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
         </button>
 
-        {/* Logout */}
         <button onClick={handleLogout} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg">
           Logout
         </button>
 
-        {/* Export PDF */}
         <button
           onClick={handleExportPDF}
-          className="absolute top-4 right-24 p-2 bg-yellow-500 text-black rounded-lg"
+          className="absolute top-4 right-28 p-2 bg-yellow-500 text-black rounded-lg"
         >
           Export PDF
         </button>
 
-        {/* Chat Selection */}
         <div className="flex flex-wrap gap-2 mb-4 mt-8">
-          {chats.map((chat) => (
+          {chats.map((chat, index) => (
             <button
               key={chat.id}
               onClick={() => {
@@ -168,7 +180,7 @@ const Chatbot = () => {
               }}
               className={`p-2 rounded-lg ${chat.id === chatId ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
             >
-              Chat {chat.id}
+              Chat {index + 1}
             </button>
           ))}
           <button onClick={handleNewChat} className="p-2 bg-green-500 rounded-lg text-white">
@@ -176,7 +188,6 @@ const Chatbot = () => {
           </button>
         </div>
 
-        {/* Chat Messages */}
         <div className={`h-96 overflow-y-auto p-4 space-y-4 rounded-lg 
           ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
           {messages.map((msg, index) => (
@@ -190,10 +201,19 @@ const Chatbot = () => {
               <strong>{msg.isUser ? "You" : botName}:</strong> {msg.text}
             </motion.div>
           ))}
+          {typingBotMessage && (
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              className="p-3 rounded-lg max-w-xs bg-gray-600 text-white"
+            >
+              <strong>{botName}:</strong> {typingBotMessage}
+            </motion.div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div className="flex items-center mt-4">
           <input
             type="text"
