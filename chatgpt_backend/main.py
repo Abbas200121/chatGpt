@@ -14,7 +14,11 @@ from typing import List
 from auth import get_current_user  # ✅ Fix: Import the missing function
 from auth import router as auth_router
 from auth import verify_password
+from fastapi.responses import FileResponse
+from image_service import generate_image
 from starlette.middleware.sessions import SessionMiddleware
+from image_service import poll_stablehorde_status
+import requests
 
 app = FastAPI()
 app.add_middleware(
@@ -71,6 +75,43 @@ def get_user_chats(user: dict = Depends(get_current_user), db: Session = Depends
     user_chats = [{"id": chat.id, "number": idx + 1} for idx, chat in enumerate(chats)]
 
     return {"chats": user_chats}
+
+from image_service import poll_stablehorde_status
+
+
+
+@app.post("/generate-image")
+def generate_image_endpoint(request: schemas.PromptRequest):
+    try:
+        # Step 1: Send async request to Stable Horde
+        generation_response = requests.post(
+            "https://stablehorde.net/api/v2/generate/async",
+            json=request.dict(),
+            headers={
+                "Content-Type": "application/json",
+                "Client-Agent": "chatGpt_backend",
+                "apikey": "0000000000"  # Optional, works anonymously but slower
+            }
+        )
+
+        if generation_response.status_code != 200:
+            return {"error": "Failed to submit generation request"}
+
+        request_id = generation_response.json().get("id")
+        print("📨 Generation ID:", request_id)
+
+        # Step 2: Poll for result
+        image_url = poll_stablehorde_status(request_id, api_key="0000000000")
+
+        if image_url:
+            return {"image_url": image_url}
+        else:
+            return {"error": "Image generation failed or timed out"}
+
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return {"error": "Server error occurred"}
+
 
 
 # ✅ Create a new chat

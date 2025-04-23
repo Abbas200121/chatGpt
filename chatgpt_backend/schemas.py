@@ -45,3 +45,15 @@ class MessageResponse(BaseModel):
 class ChatResponse(BaseModel):
     id: int
     messages: List[MessageResponse]
+
+class PromptRequest(BaseModel):
+    prompt: str
+
+from pydantic import BaseModel
+from typing import Optional, Dict
+
+class PromptRequest(BaseModel):
+    prompt: str
+
+class PromptRequest(BaseModel):
+    data: list
