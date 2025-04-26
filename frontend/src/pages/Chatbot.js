@@ -182,7 +182,7 @@ const Chatbot = () => {
     <div className={`flex flex-col items-center justify-center min-h-screen p-4 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-black"}`}>
       <div className={`max-w-4xl w-full p-6 rounded-lg shadow-lg relative ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <h2 className="text-center text-2xl font-bold mb-4 flex items-center justify-center gap-2">
-          <img src="strike.jpg" alt="Bot Icon" className="w-20 h-20" />
+          <img src="strike1.jpg" alt="Bot Icon" className="w-20 h-20" />
           Chat with {botName}
         </h2>
         <button onClick={() => setDarkMode(!darkMode)} className={`absolute top-4 left-4 p-2 rounded-lg ${darkMode ? "bg-gray-200 text-black" : "bg-gray-800 text-white"}`}>
