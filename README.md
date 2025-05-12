@@ -62,7 +62,7 @@ Implemented a feature to export the chat history to a PDF file. Added a new butt
 
 Learned how to build a full-stack application, studied API structures, requests, and responses, and explored integrating external APIs with FastAPI.
 
-## witching from Hugging Face to OpenRouter – 12 Hours
+## witching from Hugging Face to OpenRouter – 8 Hours
 
 After facing persistent 404 errors with Hugging Face's Inference API, I researched alternatives and discovered [OpenRouter.ai]. I integrated OpenRouter into the backend, replacing the previous model. It provides stable, high-quality text generation responses and significantly improved the reliability of the system.
 
