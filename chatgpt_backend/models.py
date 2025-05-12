@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime ,Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -27,7 +27,7 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)  # ✅ Fix: Add chat_id
-    content = Column(String(1000), nullable=False)  # ✅ Fix: Set length (1000)
-    response = Column(String(1000), nullable=False)  # ✅ Fix: Set length (1000)
+    content = Column(Text, nullable=False)  # ✅ Fix: Set length (1000)
+    response = Column(Text, nullable=False)  # ✅ Fix: Set length (1000)
 
     chat = relationship("Chat", back_populates="messages")  # ✅ Fix: Establish relationship

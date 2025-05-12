@@ -80,37 +80,51 @@ from image_service import poll_stablehorde_status
 
 
 
-@app.post("/generate-image")
-def generate_image_endpoint(request: schemas.PromptRequest):
+import requests
+import time
+
+@app.post("/chats/{chat_id}/generate-image", response_model=MessageResponse)
+def generate_chat_image(chat_id: int, prompt: schemas.PromptRequest, user: dict = Depends(get_current_user),
+                        db: Session = Depends(get_db)):
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user["id"]).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
     try:
-        # Step 1: Send async request to Stable Horde
+        # Step 1: Submit image request
         generation_response = requests.post(
             "https://stablehorde.net/api/v2/generate/async",
-            json=request.dict(),
+            json={
+                "prompt": prompt.prompt,
+                "params": {
+                    "n": 1,
+                    "width": 512,
+                    "height": 512
+                }
+            },
             headers={
                 "Content-Type": "application/json",
                 "Client-Agent": "chatGpt_backend",
-                "apikey": "0000000000"  # Optional, works anonymously but slower
+                "apikey": "0000000000"  # Replace with real key if needed
             }
         )
 
-        if generation_response.status_code != 200:
-            return {"error": "Failed to submit generation request"}
+        if generation_response.status_code != 202:
+            raise HTTPException(status_code=500, detail="Failed to submit image generation request")
 
         request_id = generation_response.json().get("id")
-        print("📨 Generation ID:", request_id)
-
-        # Step 2: Poll for result
         image_url = poll_stablehorde_status(request_id, api_key="0000000000")
 
-        if image_url:
-            return {"image_url": image_url}
-        else:
-            return {"error": "Image generation failed or timed out"}
+        if not image_url:
+            raise HTTPException(status_code=504, detail="Image generation timed out")
+
+        # Step 2: Save to messages (prompt as content, image as response)
+        db_message = crud.create_message(db, chat_id, prompt.prompt, image_url)
+
+        return MessageResponse(id=db_message.id, content=db_message.content, response=db_message.response)
 
     except Exception as e:
-        print(f"❌ Exception: {e}")
-        return {"error": "Server error occurred"}
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
 
@@ -160,7 +174,15 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "User created successfully"}
+    token = auth.create_access_token({"sub": new_user.email})
+    return {"token": token}
+
+
+from schemas import UserInfoResponse
+
+@app.get("/me", response_model=UserInfoResponse)
+def get_user_info(user: dict = Depends(get_current_user)):
+    return {"id": user["id"], "email": user["email"]}
 
 
 # ✅ User Login

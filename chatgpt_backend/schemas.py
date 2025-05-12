@@ -55,5 +55,6 @@ from typing import Optional, Dict
 class PromptRequest(BaseModel):
     prompt: str
 
-class PromptRequest(BaseModel):
-    data: list
+class UserInfoResponse(BaseModel):
+    id: int
+    email: str
