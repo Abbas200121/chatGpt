@@ -1,5 +1,7 @@
 # ChatGPT-App
 
+## ali hours and what i did is down
+
 ## Abbas
 
 ### **ChatGPT-App Development Progress**
@@ -51,6 +53,8 @@ Added a dark/light mode toggle using local storage to persist the selected theme
 ## 📄 Export Chat to PDF – 5 Hours
 
 Implemented a feature to export the chat history to a PDF file. Added a new button to trigger the export, and used `jsPDF` to generate downloadable PDFs including both user and bot messages. Ensured formatting and layout look clean in the exported document.
+
+## The section above reflects work done by my project partner. The following hours and tasks represent my personal contribution to the project.
 
 ## ALi
 
