@@ -1,4 +1,10 @@
 from fastapi.middleware.cors import CORSMiddleware
+
+import os
+import base64
+import uuid
+
+from fastapi.responses import JSONResponse
 import models
 import schemas
 import auth
@@ -13,12 +19,7 @@ import crud
 from typing import List
 from auth import get_current_user  # ✅ Fix: Import the missing function
 from auth import router as auth_router
-from auth import verify_password
-from fastapi.responses import FileResponse
-from image_service import generate_image
 from starlette.middleware.sessions import SessionMiddleware
-from image_service import poll_stablehorde_status
-import requests
 
 app = FastAPI()
 app.add_middleware(
@@ -54,8 +55,9 @@ origins = [
 # ✅ AI API Details
 HF_API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
 HF_API_KEY = "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"
-
+HF_API_TOKEN="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"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 # ✅ Handle Preflight Requests (Manually)
 @app.options("/{full_path:path}")
@@ -64,6 +66,21 @@ async def preflight_handler():
 @app.get("/")
 def read_root():
     return {"message": "API is working!"}
+
+
+from fastapi import FastAPI, File, UploadFile, HTTPException
+
+from transformers import BlipProcessor, BlipForConditionalGeneration
+
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+
+from image_service import poll_stablehorde_status
+import requests
+
+UPLOAD_FOLDER = "uploaded_images"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
 
 # ✅ Get all user chats
@@ -76,13 +93,55 @@ def get_user_chats(user: dict = Depends(get_current_user), db: Session = Depends
 
     return {"chats": user_chats}
 
-from image_service import poll_stablehorde_status
 
+@app.post("/chats/{chat_id}/upload-image", response_model=schemas.MessageResponse)
+def upload_image(
+    chat_id: int,
+    image: schemas.ImageUpload,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user["id"]).first()
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
 
+        # Decode base64 and save
+        base64_data = image.image.split(",")[-1]
+        image_bytes = base64.b64decode(base64_data)
+        filename = f"{uuid.uuid4().hex}.png"
+        image_path = os.path.join(UPLOAD_FOLDER, filename)
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
 
-import requests
-import time
+        # Send to Hugging Face Inference API
+        with open(image_path, "rb") as f:
+            response = requests.post(
+                "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
+                headers={
+                    "Authorization": f"Bearer YOUR_HUGGINGFACE_API_TOKEN"
+                },
+                files={"file": f}
+            )
 
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to get description")
+
+        result = response.json()
+        caption = result[0]["generated_text"] if result else "No caption returned"
+
+        # Save as a new message (user uploads image, bot replies with caption)
+        content_html = f'<img src="/{image_path}" alt="uploaded" class="rounded-lg max-w-full" />'
+        db_message = crud.create_message(db, chat_id, content_html, caption)
+
+        return schemas.MessageResponse(
+            id=db_message.id,
+            content=db_message.content,
+            response=db_message.response
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image captioning failed: {str(e)}")
 @app.post("/chats/{chat_id}/generate-image", response_model=MessageResponse)
 def generate_chat_image(chat_id: int, prompt: schemas.PromptRequest, user: dict = Depends(get_current_user),
                         db: Session = Depends(get_db)):
@@ -105,7 +164,7 @@ def generate_chat_image(chat_id: int, prompt: schemas.PromptRequest, user: dict 
             headers={
                 "Content-Type": "application/json",
                 "Client-Agent": "chatGpt_backend",
-                "apikey": "0000000000"  # Replace with real key if needed
+                "apikey": "sh-NkN32fW7bFadpJkJV4A"  # Replace with real key if needed
             }
         )
 
@@ -113,7 +172,7 @@ def generate_chat_image(chat_id: int, prompt: schemas.PromptRequest, user: dict 
             raise HTTPException(status_code=500, detail="Failed to submit image generation request")
 
         request_id = generation_response.json().get("id")
-        image_url = poll_stablehorde_status(request_id, api_key="0000000000")
+        image_url = poll_stablehorde_status(request_id, api_key="sh-NkN32fW7bFadpJkJV4A")
 
         if not image_url:
             raise HTTPException(status_code=504, detail="Image generation timed out")

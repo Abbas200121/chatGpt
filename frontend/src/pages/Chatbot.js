@@ -13,6 +13,7 @@ const Chatbot = () => {
   const [chats, setChats] = useState([]);
   const [generateImageMode, setGenerateImageMode] = useState(false);
   const messagesEndRef = useRef(null);
+  const [uploadedImage, setUploadedImage] = useState(null);
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(localStorage.getItem("theme") === "dark");
   const [typingBotMessage, setTypingBotMessage] = useState(null);
@@ -187,6 +188,46 @@ const Chatbot = () => {
         </div>
 
         <div className="flex items-center mt-4">
+       <input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result;
+
+        // Show in chat
+        setUploadedImage(base64Image);
+        setMessages((prev) => [
+          ...prev,
+          { text: `<img src="${base64Image}" alt="uploaded" class="rounded-lg max-w-full" />`, isUser: true },
+        ]);
+
+        // 🔁 Send to backend
+        (async () => {
+          try {
+            await fetch(`http://localhost:8000/chats/${chatId}/upload-image`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ image: base64Image }),
+            });
+          } catch (error) {
+            console.error("Failed to upload image to backend:", error);
+          }
+        })();
+      };
+      reader.readAsDataURL(file);
+    }
+  }}
+  className="ml-2"
+/>
+
+
           <input type="text" value={userMessage} onChange={(e) => setUserMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your message..." className={`flex-1 p-3 rounded-lg outline-none ${darkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`} />
           <button onClick={handleSend} className="ml-2 p-2 bg-blue-500 rounded-full text-white">Send</button>

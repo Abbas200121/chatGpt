@@ -58,3 +58,8 @@ class PromptRequest(BaseModel):
 class UserInfoResponse(BaseModel):
     id: int
     email: str
+
+class ImageUpload(BaseModel):
+    image: str
+
+
