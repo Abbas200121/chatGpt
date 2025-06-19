@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import base64
 import uuid
+import random
 
-from fastapi.responses import JSONResponse
 import models
 import schemas
 import auth
@@ -17,7 +17,7 @@ from passlib.context import CryptContext
 from ai_service import get_ai_response
 import crud
 from typing import List
-from auth import get_current_user  # ✅ Fix: Import the missing function
+from auth import get_current_user  
 from auth import router as auth_router
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -82,7 +82,28 @@ UPLOAD_FOLDER = "uploaded_images"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 headers = {"Authorization": f"Bearer {HF_API_KEY}"}
 
+@app.get("/chats/{chat_id}/suggestions")
+def get_suggestions(chat_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    # Verify chat ownership (optional if you removed auth)
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
 
+    # Example logic — return 3 random suggestions
+    suggestion_pool = [
+        "Can you explain more?",
+        "Give me an example.",
+        "Translate this to Arabic.",
+        "Summarize in 3 points.",
+        "Continue the last answer.",
+        "Show as a table.",
+        "Make it more detailed.",
+        "What's the opposite?",
+        "Give me pros and cons.",
+        "Draw it as a diagram."
+    ]
+    suggestions = random.sample(suggestion_pool, 3)
+    return {"suggestions": suggestions}
 # ✅ Get all user chats
 @app.get("/chats")
 def get_user_chats(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

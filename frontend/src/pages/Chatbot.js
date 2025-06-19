@@ -32,7 +32,7 @@ const Chatbot = () => {
 const recognitionRef = useRef(null);
 const [language, setLanguage] = useState("en");  // 🌐 Language state
 const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
-
+const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
     if (darkMode) {
@@ -122,13 +122,16 @@ const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
 
   const handleSend = async () => {
   if (!userMessage.trim() || !chatId) return;
+
   setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
   setUserMessage("");
   setTypingBotMessage(null);
   setIsLoading(true);
+  setSuggestions([]); // ❌ Clear old suggestions
 
   try {
     let response;
+
     if (generateImageMode) {
       const res = await fetch(`http://localhost:8000/chats/${chatId}/generate-image`, {
         method: "POST",
@@ -149,7 +152,7 @@ const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
         ? `<img src="${response.response}" alt="Generated" class="rounded-lg max-w-full" />`
         : response.response;
 
-      // Typing effect
+      // ✏️ Typing effect
       let displayed = "";
       const interval = setInterval(() => {
         displayed = botReply.slice(0, displayed.length + 1);
@@ -161,13 +164,30 @@ const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
           setMessages((prev) => [...prev, { text: botReply, isUser: false }]);
           setIsLoading(false);
 
-          // 🗣 Speak reply (skip images)
+          // 🔊 Speech synthesis (only for text)
           if (!isImage && window.speechSynthesis) {
             const utterance = new SpeechSynthesisUtterance(botReply);
-            const selectedVoice = speechSynthesis.getVoices().find(v => v.name === botVoices[language]);
+            const selectedVoice = speechSynthesis
+              .getVoices()
+              .find((v) => v.name === botVoices[language]);
             if (selectedVoice) utterance.voice = selectedVoice;
             utterance.lang = supportedLanguages[language];
             speechSynthesis.speak(utterance);
+          }
+
+          // 💡 Fetch AI suggestions (only for text)
+          if (!isImage) {
+            fetch(`http://localhost:8000/chats/${chatId}/suggestions`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            })
+              .then((res) => res.json())
+              .then((data) => setSuggestions(data.suggestions || []))
+              .catch((err) => {
+                console.error("❌ Error fetching suggestions:", err);
+                setSuggestions([]);
+              });
           }
         }
       }, 30);
@@ -176,8 +196,10 @@ const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
     console.error("Error:", error);
     setMessages((prev) => [...prev, { text: `Error: ${error.message}`, isUser: false }]);
     setIsLoading(false);
+    setSuggestions([]);
   }
 };
+
 
 
   const handleLogout = () => {
@@ -260,6 +282,23 @@ const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
 
           <div ref={messagesEndRef} />
         </div>
+        {suggestions.length > 0 && (
+  <div className="mt-4">
+    <p className="text-sm font-semibold">💡 Suggestions:</p>
+    <div className="flex flex-wrap gap-2 mt-1">
+      {suggestions.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => setUserMessage(s)}
+          className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition"
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
 
         <div className="flex items-center mt-4">
        <input
