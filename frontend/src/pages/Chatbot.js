@@ -4,6 +4,17 @@ import { useNavigate } from "react-router-dom";
 import { getChats, createNewChat, getMessages, sendMessage } from "../services/api";
 import jsPDF from "jspdf";
 
+const supportedLanguages = {
+  en: "en-US",
+  ar: "ar-EG",
+  he: "he-IL"
+};
+
+const botVoices = {
+  en: "Google US English",
+  ar: "Google العربية",
+  he: "Google עברית"
+};
 const botName = "Chatbot";
 
 const Chatbot = () => {
@@ -17,6 +28,11 @@ const Chatbot = () => {
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(localStorage.getItem("theme") === "dark");
   const [typingBotMessage, setTypingBotMessage] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+const recognitionRef = useRef(null);
+const [language, setLanguage] = useState("en");  // 🌐 Language state
+const [isLoading, setIsLoading] = useState(false); // ⏳ Bot thinking
+
 
   useEffect(() => {
     if (darkMode) {
@@ -68,6 +84,26 @@ const Chatbot = () => {
     }
   }, [chatId, fetchMessages]);
 
+ useEffect(() => {
+  if (!("webkitSpeechRecognition" in window)) return;
+
+  const recognition = new window.webkitSpeechRecognition();
+  recognition.lang = supportedLanguages[language];  // 🔄 Dynamic language
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    setUserMessage(transcript);
+  };
+
+  recognition.onerror = () => setIsRecording(false);
+  recognition.onend = () => setIsRecording(false);
+
+  recognitionRef.current = recognition;
+}, [language]); // Reactivate when language changes
+
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingBotMessage]);
@@ -85,41 +121,64 @@ const Chatbot = () => {
   };
 
   const handleSend = async () => {
-    if (!userMessage.trim() || !chatId) return;
-    setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
-    setUserMessage("");
+  if (!userMessage.trim() || !chatId) return;
+  setMessages((prev) => [...prev, { text: userMessage, isUser: true }]);
+  setUserMessage("");
+  setTypingBotMessage(null);
+  setIsLoading(true);
 
-    try {
-      let response;
-
-      if (generateImageMode) {
-        const res = await fetch(`http://localhost:8000/chats/${chatId}/generate-image`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ prompt: userMessage }),
-        });
-        response = await res.json();
-      } else {
-        response = await sendMessage(chatId, userMessage);
-      }
-
-      if (response) {
-        const isImage = generateImageMode;
-        const content = isImage
-          ? `<img src="${response.response}" alt="Generated" class="rounded-lg max-w-full" />`
-          : response.response;
-
-        setMessages((prev) => [...prev, { text: content, isUser: false }]);
-        setTypingBotMessage(null);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((prev) => [...prev, { text: `Error: ${error.message}`, isUser: false }]);
+  try {
+    let response;
+    if (generateImageMode) {
+      const res = await fetch(`http://localhost:8000/chats/${chatId}/generate-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ prompt: userMessage }),
+      });
+      response = await res.json();
+    } else {
+      response = await sendMessage(chatId, userMessage);
     }
-  };
+
+    if (response) {
+      const isImage = generateImageMode;
+      const botReply = isImage
+        ? `<img src="${response.response}" alt="Generated" class="rounded-lg max-w-full" />`
+        : response.response;
+
+      // Typing effect
+      let displayed = "";
+      const interval = setInterval(() => {
+        displayed = botReply.slice(0, displayed.length + 1);
+        setTypingBotMessage(displayed);
+
+        if (displayed.length >= botReply.length) {
+          clearInterval(interval);
+          setTypingBotMessage(null);
+          setMessages((prev) => [...prev, { text: botReply, isUser: false }]);
+          setIsLoading(false);
+
+          // 🗣 Speak reply (skip images)
+          if (!isImage && window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(botReply);
+            const selectedVoice = speechSynthesis.getVoices().find(v => v.name === botVoices[language]);
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.lang = supportedLanguages[language];
+            speechSynthesis.speak(utterance);
+          }
+        }
+      }, 30);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    setMessages((prev) => [...prev, { text: `Error: ${error.message}`, isUser: false }]);
+    setIsLoading(false);
+  }
+};
+
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -151,9 +210,21 @@ const Chatbot = () => {
 
         <h2 className="text-center text-2xl font-bold mb-4">Chat with {botName}</h2>
 
-        <button onClick={() => setDarkMode(!darkMode)} className={`absolute top-4 left-4 p-2 rounded-lg ${darkMode ? "bg-gray-200 text-black" : "bg-gray-800 text-white"}`}>
-          {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
-        </button>
+        <div className="absolute top-4 left-4 flex space-x-2">
+  <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-lg ${darkMode ? "bg-gray-200 text-black" : "bg-gray-800 text-white"}`}>
+    {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+  </button>
+
+  <button
+    onClick={() => {
+      const next = language === "en" ? "ar" : language === "ar" ? "he" : "en";
+      setLanguage(next);
+    }}
+    className="p-2 rounded-lg bg-blue-500 text-white"
+  >
+    🌐 {language.toUpperCase()}
+  </button>
+</div>
 
         <button onClick={handleLogout} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg">Logout</button>
         <button onClick={handleExportPDF} className="absolute top-4 right-28 p-2 bg-yellow-500 text-black rounded-lg">Export PDF</button>
@@ -179,11 +250,14 @@ const Chatbot = () => {
             </motion.div>
           ))}
           {typingBotMessage && (
-            <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}
-              className="p-3 rounded-lg max-w-xs bg-gray-600 text-white">
-              <strong>{botName}:</strong> {typingBotMessage}
-            </motion.div>
-          )}
+  <motion.div className="p-3 rounded-lg max-w-xs bg-gray-600 text-white">
+    <strong>{botName}:</strong> <span dangerouslySetInnerHTML={{ __html: typingBotMessage }} />
+  </motion.div>
+)}
+{isLoading && !typingBotMessage && (
+  <div className="animate-pulse text-gray-400">Bot is typing...</div>
+)}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -230,6 +304,24 @@ const Chatbot = () => {
 
           <input type="text" value={userMessage} onChange={(e) => setUserMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your message..." className={`flex-1 p-3 rounded-lg outline-none ${darkMode ? "bg-gray-700 text-white" : "bg-white text-black"}`} />
+           
+
+            <button
+  onClick={() => {
+    if (!recognitionRef.current) return;
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+    setIsRecording(!isRecording);
+  }}
+  className={`ml-2 p-2 rounded-full ${isRecording ? "bg-red-500" : "bg-green-500"} text-white`}
+  title="Microphone"
+>
+  🎤
+</button>
+
           <button onClick={handleSend} className="ml-2 p-2 bg-blue-500 rounded-full text-white">Send</button>
         </div>
       </div>
