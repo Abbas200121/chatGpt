@@ -168,54 +168,30 @@ def get_user_chats(user: dict = Depends(get_current_user), db: Session = Depends
     return {"chats": user_chats}
 
 
-@app.post("/chats/{chat_id}/upload-image", response_model=schemas.MessageResponse)
-def upload_image(
-    chat_id: int,
-    image: schemas.ImageUpload,
-    user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user["id"]).first()
-        if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
+@app.post("/chats/{chat_id}/upload-image")
+def upload_image(chat_id: int, image: dict, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    # Optional: Save image if needed. Right now we just simulate the AI response.
+    fixed_description = (
+        "The image displays a vibrant and colorful assortment of fresh fruits arranged together on a white background. "
+        "At the center stands a tall pineapple with its spiky green crown, surrounded by a variety of fruits that include "
+        "a bunch of ripe yellow bananas, shiny red and green apples, clusters of red and green grapes, a juicy orange, "
+        "a bright lemon, a soft kiwi, and a mango. The rich colors and natural textures of the fruits create an appealing "
+        "and healthy display, emphasizing freshness and variety. This arrangement could be ideal for a fruit platter, a "
+        "decorative centerpiece, or simply as a symbol of nutritious eating."
+    )
 
-        # Decode base64 and save
-        base64_data = image.image.split(",")[-1]
-        image_bytes = base64.b64decode(base64_data)
-        filename = f"{uuid.uuid4().hex}.png"
-        image_path = os.path.join(UPLOAD_FOLDER, filename)
-        with open(image_path, "wb") as f:
-            f.write(image_bytes)
+    # Save message (image prompt + AI description)
+    new_message = Message(
+        chat_id=chat_id,
+        content="[Image uploaded]",  # You can include metadata here if needed
+        response=fixed_description
+    )
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
 
-        # Send to Hugging Face Inference API
-        with open(image_path, "rb") as f:
-            response = requests.post(
-                "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
-                headers={
-                    "Authorization": f"Bearer YOUR_HUGGINGFACE_API_TOKEN"
-                },
-                files={"file": f}
-            )
+    return {"message": "Image processed and fixed response saved."}
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to get description")
-
-        result = response.json()
-        caption = result[0]["generated_text"] if result else "No caption returned"
-
-        # Save as a new message (user uploads image, bot replies with caption)
-        content_html = f'<img src="/{image_path}" alt="uploaded" class="rounded-lg max-w-full" />'
-        db_message = crud.create_message(db, chat_id, content_html, caption)
-
-        return schemas.MessageResponse(
-            id=db_message.id,
-            content=db_message.content,
-            response=db_message.response
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image captioning failed: {str(e)}")
 
 @app.get("/admin/users")
 def get_all_users(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

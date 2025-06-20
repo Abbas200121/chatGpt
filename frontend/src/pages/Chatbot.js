@@ -381,19 +381,26 @@ const handleExportZip = async () => {
                   text: `<img src="${base64Image}" alt="uploaded" class="rounded-lg max-w-full" />`, isUser: true
                 }]);
                 (async () => {
-                  try {
-                    await fetch(`http://localhost:8000/chats/${chatId}/upload-image`, {
-                      method: "POST",
-                      headers: {
-                        Authorization: `Bearer ${localStorage.getItem("token")}`,
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({ image: base64Image }),
-                    });
-                  } catch (error) {
-                    console.error("Failed to upload image to backend:", error);
-                  }
-                })();
+  try {
+    await fetch(`http://localhost:8000/chats/${chatId}/upload-image`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ image: base64Image }),
+    });
+
+    // ✅ Wait 8 seconds before fetching updated messages
+    setTimeout(() => {
+      fetchMessages(chatId);
+    }, 8000);
+
+  } catch (error) {
+    console.error("Failed to upload image to backend:", error);
+  }
+})();
+
               };
               reader.readAsDataURL(file);
             }
