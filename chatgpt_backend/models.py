@@ -7,8 +7,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False)  # ✅ Fix: Set length (255)
-    hashed_password = Column(String(255), nullable=False)  # ✅ Fix: Set length (255)
+    email = Column(String(255), unique=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_admin = Column(Integer, default=0)  # 0 = regular user, 1 = admin
 
     chats = relationship("Chat", back_populates="user")
 

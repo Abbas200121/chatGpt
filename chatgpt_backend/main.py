@@ -4,7 +4,9 @@ import os
 import base64
 import uuid
 import random
-
+import zipfile
+import io
+from fastapi.responses import StreamingResponse
 import models
 import schemas
 import auth
@@ -17,9 +19,11 @@ from passlib.context import CryptContext
 from ai_service import get_ai_response
 import crud
 from typing import List
-from auth import get_current_user  
+from auth import get_current_user
 from auth import router as auth_router
 from starlette.middleware.sessions import SessionMiddleware
+
+
 
 app = FastAPI()
 app.add_middleware(
@@ -59,7 +63,56 @@ HF_API_TOKEN="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"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+from admin_routes import admin_router
+app.include_router(admin_router)
 # ✅ Handle Preflight Requests (Manually)
+
+
+@app.get("/admin/users")
+def admin_get_users(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return crud.get_all_users(db)
+
+@app.get("/admin/users/{user_id}/chats")
+def admin_get_chats(user_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return crud.get_user_chats(db, user_id)
+
+@app.get("/admin/chats/{chat_id}/messages")
+def admin_get_messages(chat_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return crud.get_chat_messages(db, chat_id)
+
+@app.delete("/admin/messages/{message_id}")
+def admin_delete_message(message_id: int, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    success = crud.delete_message(db, message_id)
+    if success:
+        return {"detail": "Message deleted"}
+    raise HTTPException(status_code=404, detail="Message not found")
+
+@app.get("/chats/export-zip", response_class=StreamingResponse)
+def export_chats_zip(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user_chats = db.query(Chat).filter(Chat.user_id == user["id"]).all()
+    if not user_chats:
+        raise HTTPException(status_code=404, detail="No chats found")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for chat in user_chats:
+            messages = db.query(Message).filter(Message.chat_id == chat.id).all()
+            content = ""
+            for msg in messages:
+                content += f"🧑 {msg.content}\n🤖 {msg.response}\n\n"
+            zip_file.writestr(f"chat_{chat.id}.txt", content)
+
+    zip_buffer.seek(0)
+    return StreamingResponse(zip_buffer, media_type="application/x-zip-compressed", headers={"Content-Disposition": "attachment; filename=chats.zip"})
+
 @app.options("/{full_path:path}")
 async def preflight_handler():
     return {"message": "CORS preflight request allowed"}
@@ -163,6 +216,14 @@ def upload_image(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image captioning failed: {str(e)}")
+
+@app.get("/admin/users")
+def get_all_users(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    return db.query(User).all()
+
 @app.post("/chats/{chat_id}/generate-image", response_model=MessageResponse)
 def generate_chat_image(chat_id: int, prompt: schemas.PromptRequest, user: dict = Depends(get_current_user),
                         db: Session = Depends(get_db)):
@@ -262,7 +323,7 @@ from schemas import UserInfoResponse
 
 @app.get("/me", response_model=UserInfoResponse)
 def get_user_info(user: dict = Depends(get_current_user)):
-    return {"id": user["id"], "email": user["email"]}
+    return {"id": user["id"], "email": user["email"], "is_admin": user["is_admin"]}
 
 
 # ✅ User Login

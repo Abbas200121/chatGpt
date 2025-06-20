@@ -55,11 +55,13 @@ from typing import Optional, Dict
 class PromptRequest(BaseModel):
     prompt: str
 
-class UserInfoResponse(BaseModel):
-    id: int
-    email: str
+
 
 class ImageUpload(BaseModel):
     image: str
 
+class UserInfoResponse(BaseModel):
+    id: int
+    email: str
+    is_admin: bool
 
