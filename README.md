@@ -1,9 +1,5 @@
 # ChatGPT-App
 
-## ali hours and what i did is down
-
-## Abbas
-
 ### **ChatGPT-App Development Progress**
 
 ## Studying Full-Stack Development and API Usage – 8 Hours
@@ -78,8 +74,6 @@ and layout look clean in the exported document.
 ## The section above reflects work done by my project partner. The following hours and tasks represent my
 
 personal contribution to the project.
-
-## ALi
 
 ## Studying Full-Stack Development and API Usage and the project – 10 Hours
 
